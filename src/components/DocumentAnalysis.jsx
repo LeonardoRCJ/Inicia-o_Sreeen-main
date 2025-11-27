@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { analysisService } from '../services/api';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { analysisService } from "../services/api";
+import SuccessModal from "./SuccessModal";
 
 const DocumentAnalysis = () => {
   const [files, setFiles] = useState({
@@ -9,18 +10,29 @@ const DocumentAnalysis = () => {
     optional: null,
   });
   const [formData, setFormData] = useState({
-    studentName: '',
-    studentId: '',
-    currentCourse: '',
-    targetCourse: '',
+    studentName: "",
+    studentId: "",
+    currentCourse: "",
+    targetCourse: "",
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisResults, setAnalysisResults] = useState(null);
   const [error, setError] = useState(null);
   const [analysisId, setAnalysisId] = useState(null);
+  const [successModal, setSuccessModal] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (successModal) {
+      const timer = setTimeout(() => {
+        setSuccessModal(false);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [successModal]);
 
   const handleFileChange = (type, event) => {
     const file = event.target.files[0];
@@ -45,27 +57,27 @@ const DocumentAnalysis = () => {
     try {
       // Criar FormData para enviar arquivos
       const formDataToSend = new FormData();
-      
+
       // Adicionar arquivos
       if (files.student) {
-        formDataToSend.append('pdf_aluno', files.student);
+        formDataToSend.append("pdf_aluno", files.student);
       }
       if (files.curriculum) {
-        formDataToSend.append('pdf_opcionais', files.curriculum);
+        formDataToSend.append("pdf_opcionais", files.curriculum);
       }
       if (files.optional) {
-        formDataToSend.append('pdf_certificacoes', files.optional);
+        formDataToSend.append("pdf_certificacoes", files.optional);
       }
 
       // Adicionar dados do formulário
-      formDataToSend.append('studentName', formData.studentName);
-      formDataToSend.append('registration', formData.studentId);
-      formDataToSend.append('currentCourse', formData.currentCourse);
-      formDataToSend.append('targetCourse', formData.targetCourse);
+      formDataToSend.append("studentName", formData.studentName);
+      formDataToSend.append("registration", formData.studentId);
+      formDataToSend.append("currentCourse", formData.currentCourse);
+      formDataToSend.append("targetCourse", formData.targetCourse);
 
       // Enviar para o backend
       const response = await analysisService.submitAnalysis(formDataToSend);
-      
+
       // Salvar o ID da análise
       const id = response.id || response.analysis_id;
       setAnalysisId(id);
@@ -80,36 +92,33 @@ const DocumentAnalysis = () => {
 
         if (progress === 100) {
           clearInterval(progressInterval);
-          window.location.reload();
+          setSuccessModal(true);
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
         }
       }, 500);
     } catch (err) {
-      console.error('Erro ao enviar análise:', err);
+      console.error("Erro ao enviar análise:", err);
       setIsAnalyzing(false);
-      setError(err.message || 'Erro ao enviar documentos para análise');
+      setError(err.message || "Erro ao enviar documentos para análise");
     }
   };
 
-  const handleDownloadResults = async () => {
-    if (!analysisId) {
-      setError('ID da análise não encontrado');
-      return;
-    }
-
-    try {
-      await analysisService.exportResults(analysisId, 'pdf');
-    } catch (err) {
-      console.error('Erro ao exportar resultados:', err);
-      setError('Erro ao exportar resultados');
-    }
-  };
-
-  const canAnalyze = files.student && files.curriculum && formData.studentName;
+  const canAnalyze =
+    files.student &&
+    files.curriculum &&
+    formData.currentCourse &&
+    formData.studentId &&
+    formData.studentName &&
+    formData.targetCourse;
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="border-b border-gray-200 px-6 py-4">
-        <h2 className="text-lg font-medium text-gray-900">Análise de Documentos</h2>
+        <h2 className="text-lg font-medium text-gray-900">
+          Análise de Documentos
+        </h2>
         <p className="text-sm text-gray-500">
           Envie documentos para análise de equivalência curricular
         </p>
@@ -120,8 +129,12 @@ const DocumentAnalysis = () => {
           {/* Histórico Escolar */}
           <div className="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <i className="fas fa-file-pdf text-4xl text-gray-400 mb-4"></i>
-            <h3 className="text-lg font-medium text-gray-700 mb-2">Histórico Escolar</h3>
-            <p className="text-sm text-gray-500 mb-4">Arraste e solte ou clique para selecionar</p>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              Histórico Escolar
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Arraste e solte ou clique para selecionar
+            </p>
             <label
               htmlFor="student-pdf"
               className="cursor-pointer gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition duration-300 inline-flex items-center"
@@ -133,12 +146,14 @@ const DocumentAnalysis = () => {
                 type="file"
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => handleFileChange('student', e)}
+                onChange={(e) => handleFileChange("student", e)}
               />
             </label>
             {files.student && (
               <div className="mt-4">
-                <p className="text-sm font-medium text-gray-700">Arquivo selecionado:</p>
+                <p className="text-sm font-medium text-gray-700">
+                  Arquivo selecionado:
+                </p>
                 <p className="text-sm text-gray-500">{files.student.name}</p>
               </div>
             )}
@@ -147,8 +162,12 @@ const DocumentAnalysis = () => {
           {/* Grade Curricular */}
           <div className="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <i className="fas fa-file-pdf text-4xl text-gray-400 mb-4"></i>
-            <h3 className="text-lg font-medium text-gray-700 mb-2">Grade Curricular</h3>
-            <p className="text-sm text-gray-500 mb-4">Arraste e solte ou clique para selecionar</p>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              Grade Curricular
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Arraste e solte ou clique para selecionar
+            </p>
             <label
               htmlFor="curriculum-pdf"
               className="cursor-pointer gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition duration-300 inline-flex items-center"
@@ -160,12 +179,14 @@ const DocumentAnalysis = () => {
                 type="file"
                 className="hidden"
                 accept=".pdf,.xml,.json"
-                onChange={(e) => handleFileChange('curriculum', e)}
+                onChange={(e) => handleFileChange("curriculum", e)}
               />
             </label>
             {files.curriculum && (
               <div className="mt-4">
-                <p className="text-sm font-medium text-gray-700">Arquivo selecionado:</p>
+                <p className="text-sm font-medium text-gray-700">
+                  Arquivo selecionado:
+                </p>
                 <p className="text-sm text-gray-500">{files.curriculum.name}</p>
               </div>
             )}
@@ -174,8 +195,12 @@ const DocumentAnalysis = () => {
           {/* Documentos Adicionais */}
           <div className="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <i className="fas fa-file-pdf text-4xl text-gray-400 mb-4"></i>
-            <h3 className="text-lg font-medium text-gray-700 mb-2">Documentos Adicionais</h3>
-            <p className="text-sm text-gray-500 mb-4">Certificados, declarações, etc.</p>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              Documentos Adicionais
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Certificados, declarações, etc.
+            </p>
             <label
               htmlFor="optional-pdf"
               className="cursor-pointer gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition duration-300 inline-flex items-center"
@@ -187,12 +212,14 @@ const DocumentAnalysis = () => {
                 type="file"
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => handleFileChange('optional', e)}
+                onChange={(e) => handleFileChange("optional", e)}
               />
             </label>
             {files.optional && (
               <div className="mt-4">
-                <p className="text-sm font-medium text-gray-700">Arquivo selecionado:</p>
+                <p className="text-sm font-medium text-gray-700">
+                  Arquivo selecionado:
+                </p>
                 <p className="text-sm text-gray-500">{files.optional.name}</p>
               </div>
             )}
@@ -201,7 +228,9 @@ const DocumentAnalysis = () => {
 
         {/* Informações Adicionais */}
         <div className="mt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Informações Adicionais</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Informações Adicionais
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <input
@@ -209,7 +238,9 @@ const DocumentAnalysis = () => {
                 id="student-name"
                 placeholder=" "
                 value={formData.studentName}
-                onChange={(e) => handleInputChange('studentName', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("studentName", e.target.value)
+                }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <label
@@ -225,7 +256,7 @@ const DocumentAnalysis = () => {
                 id="student-id"
                 placeholder=" "
                 value={formData.studentId}
-                onChange={(e) => handleInputChange('studentId', e.target.value)}
+                onChange={(e) => handleInputChange("studentId", e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <label
@@ -241,7 +272,9 @@ const DocumentAnalysis = () => {
                 id="current-course"
                 placeholder=" "
                 value={formData.currentCourse}
-                onChange={(e) => handleInputChange('currentCourse', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("currentCourse", e.target.value)
+                }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <label
@@ -257,7 +290,9 @@ const DocumentAnalysis = () => {
                 id="target-course"
                 placeholder=" "
                 value={formData.targetCourse}
-                onChange={(e) => handleInputChange('targetCourse', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("targetCourse", e.target.value)
+                }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <label
@@ -336,86 +371,14 @@ const DocumentAnalysis = () => {
             </div>
           </div>
         )}
-
-        {/* Resultados da Análise */}
-        {analysisResults && (
-          <div className="mt-6">
-            <div className="border-t border-gray-200 pt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Resultado da Análise</h3>
-                <button
-                  onClick={handleDownloadResults}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                >
-                  <i className="fas fa-download mr-1"></i> Exportar
-                </button>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">Disciplinas Equivalentes</h4>
-                    <p className="text-3xl font-bold text-green-600">
-                      {analysisResults.equivalent}
-                    </p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">Disciplinas Pendentes</h4>
-                    <p className="text-3xl font-bold text-yellow-600">
-                      {analysisResults.pending}
-                    </p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">Carga Horária</h4>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {analysisResults.workload}h
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="border-b border-gray-200 pb-2">
-                    <h4 className="font-medium text-gray-900">Disciplinas Equivalentes</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {analysisResults.equivalentSubjects.map((subject, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-white rounded-lg border border-gray-200"
-                      >
-                        <p className="text-sm font-medium text-gray-900">{subject.name}</p>
-                        <p className="text-xs text-gray-500">Código: {subject.code}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-b border-gray-200 pb-2 mt-6">
-                    <h4 className="font-medium text-gray-900">Disciplinas Pendentes</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {analysisResults.pendingSubjects.map((subject, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-white rounded-lg border border-gray-200"
-                      >
-                        <p className="text-sm font-medium text-gray-900">{subject.name}</p>
-                        <p className="text-xs text-gray-500">Código: {subject.code}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-b border-gray-200 pb-2 mt-6">
-                    <h4 className="font-medium text-gray-900">Observações</h4>
-                  </div>
-                  <div className="text-sm text-gray-700">{analysisResults.notes}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+      <SuccessModal
+        open={successModal}
+        message="Análise feita com sucesso!"
+        onClose={() => setSuccessModal(false)}
+      />
     </div>
   );
 };
 
 export default DocumentAnalysis;
-

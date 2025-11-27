@@ -76,12 +76,6 @@ const History = () => {
           <h2 className="text-lg font-medium text-gray-900">
             Histórico de Análises
           </h2>
-          <button
-            onClick={handleNewAnalysis}
-            className="gradient-bg text-white py-1 px-3 rounded-lg text-sm font-medium hover:opacity-90 transition duration-300"
-          >
-            <i className="fas fa-plus mr-1"></i> Nova Análise
-          </button>
         </div>
       </div>
 
